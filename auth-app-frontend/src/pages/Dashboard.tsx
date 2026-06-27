@@ -9,27 +9,43 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ShieldCheckIcon, CpuIcon, RefreshCwIcon, LogOutIcon } from "lucide-react";
+import { ShieldCheckIcon, CpuIcon, RefreshCwIcon, LogOutIcon, KeyIcon, CopyIcon, CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import ApiDocsButton from "@/components/ui/ApiDocsButton";
 
 export default function Dashboard() {
   const user = useAuthStore((state) => state.user);
+  const accessToken = useAuthStore(state => state.accessToken);
   const logoutAction = useAuthStore((state) => state.logout);
+  
   const [isTestingApi, setIsTestingApi] = useState(false);
   const [apiResponse, setApiResponse] = useState<string | null>(null);
+  
+  // UI States for Token Inspector
+  const [showToken, setShowToken] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Safeguard: Ensure user exists before trying to destructure properties
   if (!user) return null;
+
+  const handleCopyToken = async () => {
+    if (!accessToken) return;
+    try {
+      await navigator.clipboard.writeText(accessToken);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy token", err);
+    }
+  };
 
   const handleTestSecureEndpoint = async () => {
     setIsTestingApi(true);
     setApiResponse(null);
 
     try {
-      // Fires an authenticated call using the unified apiClient instance
       const data = await authService.testInterceptor(user.email);
       setApiResponse(`Success! Server responded with: ${JSON.stringify(data)}`);
     } catch (error: any) {
-      // Captures the uniform error message structured by your response interceptor
       setApiResponse(`Interceptor Caught Error: ${error.message}`);
     } finally {
       setIsTestingApi(false);
@@ -60,9 +76,11 @@ export default function Dashboard() {
           </Button>
         </div>
 
+        <ApiDocsButton />
+
         {/* Dashboard Grid System */}
         <div className="grid gap-6 md:grid-cols-2">
-          
+
           {/* Card 1: System Telemetry */}
           <Card className="bg-slate-900 border-slate-800 text-slate-100">
             <CardHeader className="flex flex-row items-center gap-4 space-y-0">
@@ -128,8 +146,66 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
-
         </div>
+
+        {/* New Full Width Section: Live Token Inspector */}
+        <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="rounded-lg bg-amber-500/10 p-2 text-amber-400">
+                <KeyIcon className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-semibold text-white">Live Token Inspector</CardTitle>
+                <CardDescription className="text-slate-400">Active memory state of your Access Token</CardDescription>
+              </div>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-slate-700 hover:bg-slate-800 text-slate-300 gap-1.5 cursor-pointer"
+                onClick={() => setShowToken(!showToken)}
+              >
+                {showToken ? <EyeOffIcon className="h-3.5 w-3.5" /> : <EyeIcon className="h-3.5 w-3.5" />}
+                {showToken ? "Hide Token" : "Reveal Token"}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!accessToken}
+                className="border-slate-700 hover:bg-slate-800 text-slate-300 gap-1.5 cursor-pointer"
+                onClick={handleCopyToken}
+              >
+                {copied ? <CheckIcon className="h-3.5 w-3.5 text-emerald-400" /> : <CopyIcon className="h-3.5 w-3.5" />}
+                {copied ? "Copied!" : "Copy Token"}
+              </Button>
+            </div>
+          </CardHeader>
+          
+          <CardContent>
+            {accessToken ? (
+              <div className="relative rounded-md bg-slate-950 border border-slate-800 p-4 font-mono text-xs tracking-tight select-all">
+                {showToken ? (
+                  <p className="text-amber-400/90 break-all leading-normal max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                    {accessToken}
+                  </p>
+                ) : (
+                  <p className="text-slate-600 tracking-widest break-all select-none">
+                    {"•".repeat(Math.min(accessToken.length, 120))}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-sm text-slate-500 border border-dashed border-slate-800 rounded-md">
+                No active Access Token found in application state.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
